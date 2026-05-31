@@ -72,6 +72,24 @@
       word-break: break-all;
     }
 
+    .contract-card{
+  margin:20px 0;
+  padding:16px;
+  border-radius:18px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+}
+
+.contract-card h3{
+  margin:0 0 10px 0;
+  color:#6ec0ff;
+}
+
+.contract-card p{
+  font-size:13px;
+  word-break:break-all;
+}
+    
     .grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -165,6 +183,18 @@
 
     <div class="wallet" id="walletBox">
       Wallet not connected
+    </div>
+
+    <div class="contract-card">
+  <h3>Contract Address</h3>
+
+  <p>
+    0x50Cc62C31aC86Cc3cB7d3f82f0C76FA346C276fb
+  </p>
+
+  <button onclick="openExplorer()">
+    View Explorer
+  </button>
     </div>
 
     <div class="grid">
@@ -389,6 +419,16 @@ async function getStats() {
     alert("Failed to fetch stats. Please try again.");
   }
 }
+
+  function openExplorer() {
+
+  window.open(
+    "https://testnet.iopn.tech/address/0x50Cc62C31aC86Cc3cB7d3f82f0C76FA346C276fb",
+    "_blank"
+  );
+
+  }
+  
 </script>
 
 </body>
