@@ -225,17 +225,70 @@ function getEthereumProvider() {
 }
 
 async function connectWallet() {
+
   try {
+
     const ethProvider = getEthereumProvider();
 
     if (!ethProvider) {
-      alert("Wallet not detected. Open this demo inside MetaMask, OKX, Bitget, Trust Wallet, or another Web3 wallet browser.");
+
+      alert(
+        "Wallet not detected. Open this demo inside MetaMask, OKX, Bitget, Trust Wallet, or another Web3 wallet browser."
+      );
+
       return;
     }
 
-    provider = new ethers.providers.Web3Provider(ethProvider, "any");
+    const opnChain = {
+      chainId: "0x3D8",
+      chainName: "IOPn Testnet",
+      nativeCurrency: {
+        name: "OPN",
+        symbol: "OPN",
+        decimals: 18
+      },
+      rpcUrls: [
+        "https://testnet-rpc.iopn.tech",
+        "https://testnet-rpc2.iopn.tech"
+      ],
+      blockExplorerUrls: [
+        "https://testnet.iopn.tech"
+      ]
+    };
 
-    await provider.send("eth_requestAccounts", []);
+    try {
+
+      await ethProvider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: opnChain.chainId }]
+      });
+
+    } catch (switchError) {
+
+      if (switchError.code === 4902) {
+
+        await ethProvider.request({
+          method: "wallet_addEthereumChain",
+          params: [opnChain]
+        });
+
+      } else {
+
+        throw switchError;
+
+      }
+    }
+
+    provider =
+      new ethers.providers.Web3Provider(
+        ethProvider,
+        "any"
+      );
+
+    await provider.send(
+      "eth_requestAccounts",
+      []
+    );
 
     signer = provider.getSigner();
 
@@ -245,18 +298,24 @@ async function connectWallet() {
       signer
     );
 
-    const address = await signer.getAddress();
+    const address =
+      await signer.getAddress();
 
     document.getElementById("walletBox").innerText =
       "Connected: " + address;
 
     document.getElementById("status").innerText =
-      "Wallet connected successfully ⚡";
+      "Connected to IOPn Testnet ⚡";
 
     await getStats();
 
   } catch (error) {
-    alert("Connect failed: " + error.message);
+
+    alert(
+      "Connect failed: " +
+      error.message
+    );
+
   }
 }
 
