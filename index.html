@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IOPn Engage Hub</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background:
+        radial-gradient(circle at top, #33205f 0%, #090912 45%, #020204 100%);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 720px;
+      background: rgba(18, 18, 32, 0.88);
+      border: 1px solid rgba(160, 120, 255, 0.25);
+      border-radius: 28px;
+      padding: 32px;
+      box-shadow: 0 0 40px rgba(130, 80, 255, 0.25);
+      backdrop-filter: blur(14px);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(124, 77, 255, 0.18);
+      color: #bda7ff;
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 42px;
+      line-height: 1.1;
+    }
+
+    .gradient {
+      background: linear-gradient(90deg, #a77bff, #ffffff);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    p {
+      opacity: 0.78;
+      line-height: 1.6;
+    }
+
+    .wallet {
+      margin: 24px 0;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.05);
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    button {
+      border: none;
+      padding: 15px 18px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #7c4dff, #9d6bff);
+      color: white;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: bold;
+      transition: 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(124,77,255,0.35);
+    }
+
+    .secondary {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .stat {
+      background: rgba(255,255,255,0.06);
+      padding: 18px;
+      border-radius: 18px;
+      text-align: center;
+    }
+
+    .stat h2 {
+      margin: 0;
+      font-size: 28px;
+      color: #bda7ff;
+    }
+
+    .stat span {
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
+    #status {
+      margin-top: 22px;
+      color: #bda7ff;
+      min-height: 24px;
+    }
+
+    .footer {
+      margin-top: 28px;
+      font-size: 14px;
+      opacity: 0.65;
+      text-align: center;
+    }
+
+    @media(max-width: 600px) {
+      h1 { font-size: 32px; }
+      .grid, .stats { grid-template-columns: 1fr; }
+      .app { padding: 24px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="badge">OPN Chain Builder Demo</div>
+
+    <h1>
+      IOPn <span class="gradient">Engage Hub</span> ⚡
+    </h1>
+
+    <p>
+      A simple on-chain engagement hub for daily check-ins, builder actions,
+      community support, and activity tracking.
+    </p>
+
+    <button onclick="connectWallet()">Connect Wallet</button>
+
+    <div class="wallet" id="walletBox">
+      Wallet not connected
+    </div>
+
+    <div class="grid">
+      <button onclick="dailyCheckIn()">Daily Check-In +10</button>
+      <button onclick="engage()">Engage +2</button>
+      <button onclick="build()">Build +5</button>
+      <button onclick="supportNetwork()">Support Network +3</button>
+      <button class="secondary" onclick="getStats()">View My Stats</button>
+      <button class="secondary" onclick="clearStatus()">Clear Status</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <h2 id="points">0</h2>
+        <span>Points</span>
+      </div>
+
+      <div class="stat">
+        <h2 id="checkins">0</h2>
+        <span>Check-ins</span>
+      </div>
+
+      <div class="stat">
+        <h2 id="actions">0</h2>
+        <span>Actions</span>
+      </div>
+    </div>
+
+    <div id="status">Ready to build on OPN Chain.</div>
+
+    <div class="footer">
+      Built by malamsunyi94 · Accelerate ⋂
+    </div>
+  </div>
+
+<script>
+const contractAddress = "0x50Cc62C31aC86Cc3cB7d3f82f0C76FA346C276fb";
+
+const abi = [
+  "function dailyCheckIn() external",
+  "function engage() external",
+  "function build() external",
+  "function supportNetwork() external",
+  "function getMyStats() external view returns (uint256 myPoints, uint256 myCheckIns, uint256 myActions, uint256 nextCheckIn)"
+];
+
+let provider;
+let signer;
+let contract;
+
+function getEthereumProvider() {
+  if (window.ethereum?.providers?.length) {
+    return window.ethereum.providers.find(p => p.isMetaMask)
+      || window.ethereum.providers[0];
+  }
+  return window.ethereum;
+}
+
+async function connectWallet() {
+  try {
+    const ethProvider = getEthereumProvider();
+
+    if (!ethProvider) {
+      alert("Wallet not detected. Open this demo inside MetaMask, OKX, Bitget, Trust Wallet, or another Web3 wallet browser.");
+      return;
+    }
+
+    provider = new ethers.providers.Web3Provider(ethProvider, "any");
+    await provider.send("eth_requestAccounts", []);
+
+    signer = provider.getSigner();
+    contract = new ethers.Contract(contractAddress, abi, signer);
+
+    const address = await signer.getAddress();
+
+    document.getElementById("walletBox").innerText =
+      "Connected: " + address;
+
+    document.getElementById("status").innerText =
+      "Wallet connected successfully ⚡";
+
+    await getStats();
+
+  } catch (error) {
+    alert("Connect failed: " + error.message);
+  }
+}
+
+async function runTx(action, label) {
+  try {
+    if (!contract) {
+      alert("Connect wallet first");
+      return;
+    }
+
+    document.getElementById("status").innerText =
+      label + " transaction pending...";
+
+    const tx = await contract[action]();
+    await tx.wait();
+
+    document.getElementById("status").innerText =
+      label + " completed ✅";
+
+    await getStats();
+
+  } catch (error) {
+    document.getElementById("status").innerText =
+      "Transaction failed ❌";
+
+    alert(error.message);
+  }
+}
+
+async function dailyCheckIn() {
+  await runTx("dailyCheckIn", "Daily Check-In");
+}
+
+async function engage() {
+  await runTx("engage", "Engage");
+}
+
+async function build() {
+  await runTx("build", "Build");
+}
+
+async function supportNetwork() {
+  await runTx("supportNetwork", "Support Network");
+}
+
+async function getStats() {
+  try {
+    if (!contract) {
+      alert("Connect wallet first");
+      return;
+    }
+
+    const stats = await contract.getMyStats();
+
+    document.getElementById("points").innerText =
+      stats.myPoints.toString();
+
+    document.getElementById("checkins").innerText =
+      stats.myCheckIns.toString();
+
+    document.getElementById("actions").innerText =
+      stats.myActions.toString();
+
+    document.getElementById("status").innerText =
+      "Stats updated ✅";
+
+  } catch (error) {
+    alert("Failed to fetch stats: " + error.message);
+  }
+}
+
+function clearStatus() {
+  document.getElementById("status").innerText =
+    "Ready to build on OPN Chain.";
+}
+</script>
+
+</body>
+        </html>
