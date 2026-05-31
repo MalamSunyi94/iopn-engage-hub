@@ -14,8 +14,7 @@
       margin: 0;
       min-height: 100vh;
       font-family: Arial, sans-serif;
-      background:
-        radial-gradient(circle at top, #123a6f 0%, #07101f 45%, #020408 100%);
+      background: radial-gradient(circle at top, #123a6f 0%, #07101f 45%, #020408 100%);
       color: white;
       display: flex;
       justify-content: center;
@@ -201,7 +200,24 @@
   </div>
 
 <script>
-const contractAddress = "0x78fCF013D8B1Ce73465fD038e33DBb6aB0B06ff9";
+const contractAddress = "0x50Cc62C31aC86Cc3cB7d3f82f0C76FA346C276fb";
+
+const opnChain = {
+  chainId: "0x3D8",
+  chainName: "IOPn Testnet",
+  nativeCurrency: {
+    name: "OPN",
+    symbol: "OPN",
+    decimals: 18
+  },
+  rpcUrls: [
+    "https://testnet-rpc.iopn.tech",
+    "https://testnet-rpc2.iopn.tech"
+  ],
+  blockExplorerUrls: [
+    "https://testnet.iopn.tech"
+  ]
+};
 
 const abi = [
   "function dailyCheckIn() external",
@@ -220,75 +236,40 @@ function getEthereumProvider() {
     return window.ethereum.providers.find(p => p.isMetaMask)
       || window.ethereum.providers[0];
   }
-
   return window.ethereum;
 }
 
-async function connectWallet() {
-
+async function switchToOPN(ethProvider) {
   try {
+    await ethProvider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: opnChain.chainId }]
+    });
+  } catch (switchError) {
+    if (switchError.code === 4902) {
+      await ethProvider.request({
+        method: "wallet_addEthereumChain",
+        params: [opnChain]
+      });
+    } else {
+      throw switchError;
+    }
+  }
+}
 
+async function connectWallet() {
+  try {
     const ethProvider = getEthereumProvider();
 
     if (!ethProvider) {
-
-      alert(
-        "Wallet not detected. Open this demo inside MetaMask, OKX, Bitget, Trust Wallet, or another Web3 wallet browser."
-      );
-
+      alert("Wallet not detected. Open this demo inside a Web3 wallet browser.");
       return;
     }
 
-    const opnChain = {
-      chainId: "0x3D8",
-      chainName: "IOPn Testnet",
-      nativeCurrency: {
-        name: "OPN",
-        symbol: "OPN",
-        decimals: 18
-      },
-      rpcUrls: [
-        "https://testnet-rpc.iopn.tech",
-        "https://testnet-rpc2.iopn.tech"
-      ],
-      blockExplorerUrls: [
-        "https://testnet.iopn.tech"
-      ]
-    };
+    await switchToOPN(ethProvider);
 
-    try {
-
-      await ethProvider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: opnChain.chainId }]
-      });
-
-    } catch (switchError) {
-
-      if (switchError.code === 4902) {
-
-        await ethProvider.request({
-          method: "wallet_addEthereumChain",
-          params: [opnChain]
-        });
-
-      } else {
-
-        throw switchError;
-
-      }
-    }
-
-    provider =
-      new ethers.providers.Web3Provider(
-        ethProvider,
-        "any"
-      );
-
-    await provider.send(
-      "eth_requestAccounts",
-      []
-    );
+    provider = new ethers.providers.Web3Provider(ethProvider, "any");
+    await provider.send("eth_requestAccounts", []);
 
     signer = provider.getSigner();
 
@@ -298,8 +279,7 @@ async function connectWallet() {
       signer
     );
 
-    const address =
-      await signer.getAddress();
+    const address = await signer.getAddress();
 
     document.getElementById("walletBox").innerText =
       "Connected: " + address;
@@ -310,21 +290,40 @@ async function connectWallet() {
     await getStats();
 
   } catch (error) {
-
-    alert(
-      "Connect failed: " +
-      error.message
-    );
-
+    alert("Connect failed. Please try again.");
   }
+}
+
+async function ensureConnectedAndOPN() {
+  const ethProvider = getEthereumProvider();
+
+  if (!ethProvider) {
+    alert("Wallet not detected.");
+    return false;
+  }
+
+  await switchToOPN(ethProvider);
+
+  if (!contract) {
+    provider = new ethers.providers.Web3Provider(ethProvider, "any");
+    await provider.send("eth_requestAccounts", []);
+    signer = provider.getSigner();
+
+    contract = new ethers.Contract(
+      contractAddress,
+      abi,
+      signer
+    );
+  }
+
+  return true;
 }
 
 async function runTx(action, label) {
   try {
-    if (!contract) {
-      alert("Connect wallet first");
-      return;
-    }
+    const ready = await ensureConnectedAndOPN();
+
+    if (!ready) return;
 
     document.getElementById("status").innerText =
       label + " transaction pending...";
@@ -342,7 +341,11 @@ async function runTx(action, label) {
     document.getElementById("status").innerText =
       "Transaction failed ❌";
 
-    alert(error.message);
+    if (error.message && error.message.includes("Check-in once every 24h")) {
+      alert("You can check in once every 24 hours.");
+    } else {
+      alert("Transaction failed. Please try again.");
+    }
   }
 }
 
@@ -364,10 +367,9 @@ async function supportNetwork() {
 
 async function getStats() {
   try {
-    if (!contract) {
-      alert("Connect wallet first");
-      return;
-    }
+    const ready = await ensureConnectedAndOPN();
+
+    if (!ready) return;
 
     const stats = await contract.getMyStats();
 
@@ -384,7 +386,7 @@ async function getStats() {
       "Stats updated ✅";
 
   } catch (error) {
-    alert("Failed to fetch stats: " + error.message);
+    alert("Failed to fetch stats. Please try again.");
   }
 }
 </script>
